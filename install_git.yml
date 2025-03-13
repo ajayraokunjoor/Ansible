@@ -1,0 +1,31 @@
+---
+- name: Install Git on linux hosts based on distribution
+  hosts: linux-hosts
+  become: yes
+  vars_files:
+    - vault.yml
+  tasks:
+    - name: Install Git on Debian-based systems (Ubuntu, Kali, etc.)
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+      when: ansible_distribution in ['Ubuntu', 'Debian', 'Kali']
+
+    - name: Install Git on RedHat-based systems (CentOS, RHEL, AlmaLinux, etc.)
+      yum:
+        name: git
+        state: present
+      when: ansible_distribution in ['CentOS', 'RedHat', 'AlmaLinux']
+
+    - name: Install Git on Fedora
+      dnf:
+        name: git
+        state: present
+      when: ansible_distribution == 'Fedora'
+
+    - name: Install Git on openSUSE
+      zypper:
+        name: git
+        state: present
+      when: ansible_distribution == 'openSUSE' 

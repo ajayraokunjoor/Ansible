@@ -1,0 +1,38 @@
+---
+- name: Install and start httpd/apache2 based on Linux distribution
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Determine the Linux distribution
+      ansible.builtin.setup:
+        filter: ansible_distribution
+      register: distro_info
+
+    - name: Install httpd on Red Hat-based systems
+      yum:
+        name: httpd
+        state: present
+      when: distro_info.ansible_facts.ansible_distribution in ['RedHat', 'CentOS', 'Fedora', 'Rocky']
+
+    - name: Install apache2 on Debian/Ubuntu-based systems
+      apt:
+        name: apache2
+        state: present
+        update_cache: yes
+      when: distro_info.ansible_facts.ansible_distribution in ['Debian', 'Ubuntu']
+
+    - name: Start and enable httpd/apache2 service on Red Hat-based systems
+      systemd:
+        name: httpd
+        state: started
+        enabled: yes
+      when: distro_info.ansible_facts.ansible_distribution in ['RedHat', 'CentOS', 'Fedora', 'Rocky']
+
+    - name: Start and enable apache2 service on Debian/Ubuntu-based systems
+      systemd:
+        name: apache2
+        state: started
+        enabled: yes
+      when: distro_info.ansible_facts.ansible_distribution in ['Debian', 'Ubuntu']
+
