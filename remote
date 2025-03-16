@@ -1,0 +1,13 @@
+working dir: /home/cloud_user/ark
+
+service_list:
+- httpd
+- nfs
+- mariadb
+
+share paths:
+  nfs: /mnt/nfs
+  cifs: /mnt/cifs
+  iscsi: /mnt/iscsi
+
+

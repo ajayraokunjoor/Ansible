@@ -1,6 +1,6 @@
 ---
 - name: Install and start httpd/apache2 based on Linux distribution
-  hosts: all
+  hosts: linux-hosts
   become: yes
 
   tasks:
@@ -20,7 +20,7 @@
         name: apache2
         state: present
         update_cache: yes
-      when: distro_info.ansible_facts.ansible_distribution in ['Debian', 'Ubuntu']
+      when: distro_info.ansible_facts.ansible_distribution in ['Debian', 'Ubuntu','Kali']
 
     - name: Start and enable httpd/apache2 service on Red Hat-based systems
       systemd:
