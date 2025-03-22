@@ -1,0 +1,33 @@
+---
+- name: Copy and execute a shell script on remote hosts
+  hosts: "{{ target_group }}"
+  become: yes
+  vars:
+    script_src: ""  # Variable to store the script path (passed as an argument)
+  tasks:
+    - name: Ensure the script source is provided
+      fail:
+        msg: "The script source path must be provided using --extra-vars 'script_src=/path/to/script.sh'"
+      when: script_src == ""
+
+    - name: Copy the shell script to the remote hosts
+      copy:
+        src: "{{ script_src }}"  # Path to the script passed as an argument
+        dest: /home/cloud_user/ark/script.sh     # Destination path on the remote hosts
+        mode: '0755'             # Make the script executable
+
+    - name: Run the shell script on the remote hosts
+      command: /home/cloud_user/ark/script.sh
+      args:
+        chdir: /home/cloud_user/ark
+          # Optional: Change to a specific directory before running the script
+      register: script_output
+
+    - name: Display the script output
+      debug:
+        var: script_output.stdout
+
+          #- name: Remove the script from the remote hosts (optional)
+          #file:
+          #path: /tmp/script.sh
+          #state: absent

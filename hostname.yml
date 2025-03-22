@@ -1,0 +1,8 @@
+--- # To print all the hostnames
+- name: Example to print all the hostnames
+  hosts: "{{ target_group }}"
+  tasks:
+    - name: Print the hostname
+      debug:
+        msg: "Running on {{ inventory_hostname }}"
+      

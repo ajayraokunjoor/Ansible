@@ -1,0 +1,7 @@
+--- #Playbook to take host group as arguments and print the hostname
+- name: Example playbook with dynamic group selection
+  hosts: "{{ target_group }}"
+  tasks:
+    - name: Print the hostname
+      debug:
+        msg: "Running on {{ inventory_hostname }}"
