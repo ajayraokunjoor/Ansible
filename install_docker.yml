@@ -1,0 +1,188 @@
+---
+- name: Install Docker on Ubuntu and Red Hat Linux
+  hosts: "{{ target_hosts }}"
+  become: yes
+  
+  vars:
+    # Docker installation options
+    docker_edition: 'ce'  # Community Edition
+    docker_compose_version: 'v2.17.2'
+    install_docker_compose: true
+    configure_docker_daemon: true
+    add_users_to_docker_group: true
+    docker_users:
+      - "{{ ansible_user }}"
+    
+    # Custom daemon options
+    docker_daemon_options:
+      log-driver: "json-file"
+      log-opts:
+        max-size: "10m"
+        max-file: "3"
+      storage-driver: "overlay2"
+  
+  tasks:
+    - name: Gather OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ ansible_distribution|lower }}_{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_distribution|lower }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+      tags: always
+    
+    - name: Set distribution-specific facts
+      set_fact:
+        is_ubuntu: "{{ ansible_distribution|lower == 'ubuntu' }}"
+        is_redhat: "{{ ansible_os_family|lower == 'redhat' }}"
+      tags: always
+      
+    # Ubuntu-specific tasks
+    - name: Ubuntu | Remove old Docker versions
+      apt:
+        name:
+          - docker
+          - docker-engine 
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+        purge: yes
+      when: is_ubuntu
+    
+    - name: Ubuntu | Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - python3-pip
+        state: present
+        update_cache: yes
+      when: is_ubuntu
+    
+    - name: Ubuntu | Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      when: is_ubuntu
+    
+    - name: Ubuntu | Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+      when: is_ubuntu
+    
+    - name: Ubuntu | Install Docker packages
+      apt:
+        name:
+          - docker-{{ docker_edition }}
+          - docker-{{ docker_edition }}-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+      when: is_ubuntu
+    
+    # Red Hat-specific tasks
+    - name: RedHat | Remove old Docker versions
+      yum:
+        name:
+          - docker
+          - docker-client
+          - docker-client-latest
+          - docker-common
+          - docker-latest
+          - docker-latest-logrotate
+          - docker-logrotate
+          - docker-engine
+        state: absent
+      when: is_redhat
+    
+    - name: RedHat | Install prerequisites
+      yum:
+        name:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+          - python3-pip
+        state: present
+      when: is_redhat
+    
+    - name: RedHat | Add Docker repository
+      command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+      when: is_redhat
+    
+    - name: RedHat | Install Docker packages
+      yum:
+        name:
+          - docker-{{ docker_edition }}
+          - docker-{{ docker_edition }}-cli
+          - containerd.io
+        state: present
+      when: is_redhat
+    
+    # Common tasks for both distributions
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+    
+    - name: Install Docker Compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+      when: install_docker_compose
+    
+    - name: Add users to Docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+      when: add_users_to_docker_group
+    
+    - name: Create Docker daemon.json directory
+      file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+      when: configure_docker_daemon
+    
+    - name: Configure Docker daemon
+      copy:
+        content: "{{ docker_daemon_options | to_nice_json }}"
+        dest: /etc/docker/daemon.json
+      notify: Restart Docker
+      when: configure_docker_daemon
+    
+    - name: Install Docker Python module
+      pip:
+        name:
+          - docker
+          - docker-compose
+        state: present
+    
+    # Verification steps
+    - name: Verify Docker installation
+      block:
+        - name: Check Docker version
+          command: docker --version
+          register: docker_version
+          changed_when: false
+        
+        - name: Display Docker version
+          debug:
+            var: docker_version.stdout_lines
+      
+  handlers:
+    - name: Restart Docker
+      systemd:
+        name: docker
+        state: restarted

@@ -1,0 +1,66 @@
+---
+- name: Install Docker on Kali Linux
+  hosts: "{{ target_hosts }}"
+  become: true
+  vars:
+    docker_users: []  # Add users here (e.g., ["kali"])
+
+  tasks:
+    - name: Remove old Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-engine
+          - containerd
+          - runc
+        state: absent
+      ignore_errors: yes
+
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        id: 0EBFCD88
+        state: present
+
+    - name: Add Docker repository (Debian bookworm for Kali)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ ansible_architecture }} signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable"
+        state: present
+        filename: docker.list
+        update_cache: yes
+
+    - name: Install Docker CE
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Ensure Docker is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Test Docker with hello-world
+      ansible.builtin.command: docker run hello-world
+      ignore_errors: yes  # In case Docker needs sudo
+
+    - name: Add users to Docker group (optional)
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+      when: docker_users | length > 0

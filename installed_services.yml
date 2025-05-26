@@ -1,0 +1,19 @@
+---
+- name: Check installed services
+  hosts: "{{ target_hosts }}"
+  tasks:
+    - name: Verify service status
+      ansible.builtin.command: systemctl is-enabled {{ item }}
+      register: result
+      loop: "{{ services.split(',') }}"
+      ignore_errors: yes
+    - name: Display results
+      ansible.builtin.debug:
+        msg: "Service {{ item.item }} is {{ item.stdout }}"
+      loop: "{{ result.results }}"
+      when: item.rc == 0
+    - name: Display failed services
+      ansible.builtin.debug:
+        msg: "Service {{ item.item }} not found or errored"
+      loop: "{{ result.results }}"
+      when: item.rc != 0
